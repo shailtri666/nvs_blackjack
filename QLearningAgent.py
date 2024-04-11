@@ -73,7 +73,7 @@ class QLearningAgent:
         return current_epsilon, new_state
 
 
-n_episodes = 10000000
+n_episodes = 10000
 blackjack_env = gym.make('Blackjack-v1', natural=True, sab=False, render_mode='rgb_array')
 blackjack_env = gym.wrappers.RecordEpisodeStatistics(blackjack_env, buffer_length=n_episodes)
 qlAgent = QLearningAgent(blackjack_env, 1, 1, 0.999)
@@ -112,17 +112,12 @@ def make_training_plots(rolling_length, filename):
     plt.show()
 
 
-make_training_plots(roll_length, "testing.png")
+# make_training_plots(roll_length, "testing.png")
 
 
-def create_grids(agent, usable_ace=False):
-    """Create value and policy grid given an agent."""
-    # convert our state-action values to state values
-    # and build a policy dictionary that maps observations to actions
-    state_value = defaultdict(float)
+def generate_policy_grid(agent, usable_ace=False):
     policy = defaultdict(int)
     for obs, action_values in agent.q_values.items():
-        state_value[obs] = float(np.max(action_values))
         policy[obs] = int(np.argmax(action_values))
 
     player_count, dealer_count = np.meshgrid(
@@ -131,75 +126,58 @@ def create_grids(agent, usable_ace=False):
         np.arange(1, 11),
     )
 
-    # create the value grid for plotting
-    value = np.apply_along_axis(
-        lambda obs: state_value[(obs[0], obs[1], usable_ace)],
-        axis=2,
-        arr=np.dstack([player_count, dealer_count]),
-    )
-    value_grid = player_count, dealer_count, value
-
     # create the policy grid for plotting
     policy_grid = np.apply_along_axis(
         lambda obs: policy[(obs[0], obs[1], usable_ace)],
         axis=2,
         arr=np.dstack([player_count, dealer_count]),
     )
-    return value_grid, policy_grid
+    return policy_grid
 
 
-def create_plots(value_grid, policy_grid, title: str):
-    """Creates a plot using a value and policy grid."""
-    # create a new figure with 2 subplots (left: state values, right: policy)
-    player_count, dealer_count, value = value_grid
-    fig = plt.figure(figsize=plt.figaspect(0.4))
-    fig.suptitle(title, fontsize=16)
+def create_plots(policy_grid, title, filename):
+    fig, ax = plt.subplots()
+    im = ax.imshow(policy_grid, cmap='Pastel1')  # Set3 with black, Pastel1 with black
 
-    # plot the state values
-    ax1 = fig.add_subplot(1, 2, 1, projection="3d")
-    ax1.plot_surface(
-        player_count,
-        dealer_count,
-        value,
-        rstride=1,
-        cstride=1,
-        cmap="viridis",
-        edgecolor="none",
-    )
-    plt.xticks(range(12, 22), range(12, 22))
-    plt.yticks(range(1, 11), ["A"] + list(range(2, 11)))
-    ax1.set_title(f"State values: {title}")
-    ax1.set_xlabel("Player sum")
-    ax1.set_ylabel("Dealer showing")
-    ax1.zaxis.set_rotate_label(False)
-    ax1.set_zlabel("Value", fontsize=14, rotation=90)
-    ax1.view_init(20, 220)
+    ax.set_xticks(range(0, 10), labels=list(map(str, range(12, 22))))
+    ax.set_yticks(range(0, 10), ["A"] + list(map(str, range(2, 11))))
 
-    # plot the policy
-    fig.add_subplot(1, 2, 2)
-    ax2 = sns.heatmap(policy_grid, linewidth=0, annot=True, cmap="Accent_r", cbar=False)
-    ax2.set_title(f"Policy: {title}")
-    ax2.set_xlabel("Player sum")
-    ax2.set_ylabel("Dealer showing")
-    ax2.set_xticklabels(range(12, 22))
-    ax2.set_yticklabels(["A"] + list(range(2, 11)), fontsize=12)
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
 
-    # add a legend
-    legend_elements = [
-        Patch(facecolor="lightgreen", edgecolor="black", label="Hit"),
-        Patch(facecolor="grey", edgecolor="black", label="Stick"),
-    ]
-    ax2.legend(handles=legend_elements, bbox_to_anchor=(1.3, 1))
-    return fig
+    for i in range(policy_grid.shape[0]):
+        for j in range(policy_grid.shape[1]):
+            ax.text(j, i, policy_grid[i, j],
+                    ha="center", va="center", color="black")
+
+    ax.set_title("Harvest of local farmers (in tons/year)")
+    fig.tight_layout()
+    plt.title(title)
+    plt.savefig(filename)
+    plt.show()
+
+    # plt.figure()
+    # plt.title(f"Policy: {title}")
+    # # fig.suptitle(f"Policy: {title}", fontsize=16)
+    #
+    # sns.heatmap(policy_grid, linewidth=0, annot=True, cmap="Accent_r", cbar=False)
+    # plt.xlabel("Player sum")
+    # plt.ylabel("Dealer showing")
+    # plt.xticks(list(range(12, 22)), list(map(str, range(12, 22))))
+    # plt.yticks(range(1, 11), ["A"] + list(map(str, range(2, 11))))
+    #
+    # legend_elements = [
+    #     Patch(facecolor="lightgreen", edgecolor="black", label="Hit"),
+    #     Patch(facecolor="grey", edgecolor="black", label="Stick"),
+    # ]
+    # plt.legend(handles=legend_elements, bbox_to_anchor=(1.3, 1))
+    # # ax2.legend(handles=legend_elements, bbox_to_anchor=(1.3, 1))
+    # plt.savefig(filename)
+    # plt.show()
 
 
 # state values & policy with usable ace (ace counts as 11)
-value_grid, policy_grid = create_grids(qlAgent, usable_ace=True)
-fig1 = create_plots(value_grid, policy_grid, title="With usable ace")
-plt.savefig("usable_ace_policy_gamma1_epsilon1.png")
-plt.show()
+policy_grid = generate_policy_grid(qlAgent, usable_ace=True)
+create_plots(policy_grid, title="With usable ace", filename="usable_ace_policy_testing.png")
 
-value_grid, policy_grid = create_grids(qlAgent, usable_ace=False)
-fig2 = create_plots(value_grid, policy_grid, title="Without usable ace")
-plt.savefig("unusable_ace_policy_gamma1_epsilon1.png")
-plt.show()
+# policy_grid = generate_policy_grid(qlAgent, usable_ace=False)
+# create_plots(policy_grid, title="Without usable ace", filename="unusable_ace_policy_testing.png")
