@@ -112,7 +112,7 @@ def make_training_plots(rolling_length, filename):
     plt.show()
 
 
-# make_training_plots(roll_length, "testing.png")
+make_training_plots(roll_length, "training_plots.png")
 
 
 def generate_policy_grid(agent, usable_ace=False):
@@ -155,29 +155,11 @@ def create_plots(policy_grid, title, filename):
     plt.savefig(filename)
     plt.show()
 
-    # plt.figure()
-    # plt.title(f"Policy: {title}")
-    # # fig.suptitle(f"Policy: {title}", fontsize=16)
-    #
-    # sns.heatmap(policy_grid, linewidth=0, annot=True, cmap="Accent_r", cbar=False)
-    # plt.xlabel("Player sum")
-    # plt.ylabel("Dealer showing")
-    # plt.xticks(list(range(12, 22)), list(map(str, range(12, 22))))
-    # plt.yticks(range(1, 11), ["A"] + list(map(str, range(2, 11))))
-    #
-    # legend_elements = [
-    #     Patch(facecolor="lightgreen", edgecolor="black", label="Hit"),
-    #     Patch(facecolor="grey", edgecolor="black", label="Stick"),
-    # ]
-    # plt.legend(handles=legend_elements, bbox_to_anchor=(1.3, 1))
-    # # ax2.legend(handles=legend_elements, bbox_to_anchor=(1.3, 1))
-    # plt.savefig(filename)
-    # plt.show()
 
-
-# state values & policy with usable ace (ace counts as 11)
+# policy with usable ace (ace counts as 1 or 11)
 policy_grid = generate_policy_grid(qlAgent, usable_ace=True)
-create_plots(policy_grid, title="With usable ace", filename="usable_ace_policy_testing.png")
+create_plots(policy_grid, title="With usable ace", filename="usable_ace_policy_heatmap.png")
 
-# policy_grid = generate_policy_grid(qlAgent, usable_ace=False)
-# create_plots(policy_grid, title="Without usable ace", filename="unusable_ace_policy_testing.png")
+# policy without usable ace
+policy_grid = generate_policy_grid(qlAgent, usable_ace=False)
+create_plots(policy_grid, title="Without usable ace", filename="unusable_ace_policy_heatmap.png")
