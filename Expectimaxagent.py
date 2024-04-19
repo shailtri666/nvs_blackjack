@@ -140,6 +140,7 @@ def expectimax(env, depth, is_player_turn):
         else:
             hit_value = expectimax(env, depth - 1, True)
         # Reset to the original state (we'll need a mechanism to store/replay states)
+        env.reset()
         env.set_state(*initial_incoming_state)
 
         # Option to stand
@@ -169,7 +170,7 @@ def expectimax(env, depth, is_player_turn):
 def best_move(env):
     # Simulate hitting
     saved_state = copy.deepcopy(clone_env(env))  # Hypothetical method to clone the env state
-    _, reward, done, _, _ = env.step(1)  # Hit
+    new_state, reward, done, _, _ = env.step(1)  # Hit
     if not done:
         hit_value = expectimax(env, 2, True)
     else:
@@ -178,7 +179,6 @@ def best_move(env):
     # Simulate standing
     env.reset()
     env.set_state(*saved_state)
-    saved_state = copy.deepcopy(clone_env(env))
     _, reward, done, _, _ = env.step(0)  # Stand
     if not done:
         stand_value = expectimax(env, 2, False)
