@@ -73,11 +73,34 @@ class QLearningAgent:
         return current_epsilon, new_state
 
 
-n_episodes = 10000
+n_episodes = 1000000
 blackjack_env = gym.make('Blackjack-v1', natural=True, sab=False, render_mode='rgb_array')
 blackjack_env = gym.wrappers.RecordEpisodeStatistics(blackjack_env, buffer_length=n_episodes)
-qlAgent = QLearningAgent(blackjack_env, 1, 1, 0.999)
+qlAgent = QLearningAgent(blackjack_env, 0.9, 1, 0.2)
 q_values, optimal_policy = qlAgent.train_agent(n_episodes)
+
+
+def get_win_rate(policy, num_games, env):
+    state, _ = env.reset()
+    num_wins = 0
+
+    for _ in range(num_games):
+        episode_complete_flag = False
+        reward = 0
+
+        while not episode_complete_flag:
+            action = policy[state]
+            state, reward, episode_complete_flag, truncated, info = env.step(action)
+
+        if reward > 0:
+            num_wins += 1
+
+        state, info = env.reset()
+
+    return num_wins * 100 / num_games
+
+
+get_win_rate(optimal_policy, 100000, blackjack_env)
 
 roll_length = 500
 
