@@ -145,7 +145,7 @@ def generate_policy_grid(agent, usable_ace=False):
 
     player_count, dealer_count = np.meshgrid(
         # players count, dealers face-up card
-        np.arange(12, 22),
+        np.arange(5, 22),
         np.arange(1, 11),
     )
 
@@ -162,7 +162,7 @@ def create_plots(policy_grid, title, filename):
     fig, ax = plt.subplots()
     im = ax.imshow(policy_grid, cmap='Pastel1')  # Set3 with black, Pastel1 with black
 
-    ax.set_xticks(range(0, 10), labels=list(map(str, range(12, 22))))
+    ax.set_xticks(range(0, 14), labels=list(map(str, range(8, 22))))
     ax.set_yticks(range(0, 10), ["A"] + list(map(str, range(2, 11))))
 
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
