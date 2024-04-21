@@ -33,7 +33,7 @@ def generate_policy_grid(agent, usable_ace=False):
 
     player_count, dealer_count = np.meshgrid(
         # players count, dealers face-up card
-        np.arange(12, 22),
+        np.arange(8, 22),
         np.arange(1, 11),
     )
 
@@ -50,7 +50,7 @@ def create_plots(policy_grid, title, filename):
     fig, ax = plt.subplots()
     im = ax.imshow(policy_grid, cmap='Pastel1')  # Set3 with black, Pastel1 with black
 
-    ax.set_xticks(range(0, 10), labels=list(map(str, range(12, 22))))
+    ax.set_xticks(range(0, 14), labels=list(map(str, range(8, 22))))
     ax.set_yticks(range(0, 10), ["A"] + list(map(str, range(2, 11))))
 
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
@@ -65,6 +65,16 @@ def create_plots(policy_grid, title, filename):
     plt.title(title)
     plt.savefig(filename)
     plt.show()
+
+
+def usable_ace(state):  # Does this hand have a usable ace?
+    return int(state[2] and state[0] + 10 <= 21)
+
+
+def sum_hand(state):  # Return current hand total
+    if usable_ace(state):
+        return state[0] + 10
+    return state[0]
 
 
 class ExpectimaxAgent:
@@ -96,9 +106,12 @@ class ExpectimaxAgent:
             # Player's turn (maximize expected reward)
             if not episode_complete:
                 if flag_calculate_hit_value:
-                    hit_value = np.average(
-                        [expectimax((state[0] + card, state[1], state[2]), (state[0] + card > 21)) for card in
-                         range(2, 10)])
+                    hit_value = [expectimax((sum_hand(state) + card, state[1], state[2]), (sum_hand(state) + card > 21))
+                                 for card in range(2, 11)]
+                    ace_state = (state[0] + 1, state[1], 1)
+                    ace_hit_value = expectimax(ace_state, (sum_hand(ace_state) > 21))
+                    hit_value.append(ace_hit_value)
+                    hit_value = np.average(hit_value)
                     self.expected_values[state][1] = hit_value
                 if flag_calculate_stand_value:
                     # For stand value calculation
@@ -111,7 +124,8 @@ class ExpectimaxAgent:
                         win_range = range(17, state[0])
                         loss_range = range(state[0] + 1, 22)
                         if state[0] > 17:
-                            win_probability = probability_of_sum_between_given_range(state[1], win_range[0], win_range[-1])
+                            win_probability = probability_of_sum_between_given_range(state[1], win_range[0],
+                                                                                     win_range[-1])
                         else:
                             win_probability = 0
                         if state[0] < 21:
@@ -151,15 +165,8 @@ class ExpectimaxAgent:
         # Choose action based on maximizing expected reward
         return 0 if value[0] > value[1] else 1  # Stand if expected reward is better, Hit otherwise
 
-    def is_dealer_playing(self, state):
-        return state[1] < 17
-
-    def probability(self, card):
-        # Assume uniform probability for simplicity (can be improved with card counting)
-        return 1 / 10
-
     def run(self, num_episodes=100):
-        for _ in tqdm(range(num_episodes)):
+        for ep_num in tqdm(range(num_episodes)):
             observation, _ = self.env.reset()
             while True:
                 self.observe(observation)
@@ -168,6 +175,26 @@ class ExpectimaxAgent:
                 # Optional: Implement learning or update strategy based on reward
                 if done:
                     break
+
+
+def get_win_rate(policy, num_games, env):
+    state, _ = env.reset()
+    num_wins = 0
+
+    for _ in tqdm(range(num_games)):
+        episode_complete_flag = False
+        reward = 0
+
+        while not episode_complete_flag:
+            action = np.argmax(policy[state])
+            state, reward, episode_complete_flag, truncated, info = env.step(action)
+
+        if reward > 0:
+            num_wins += 1
+
+        state, info = env.reset()
+
+    return num_wins * 100 / num_games
 
 
 if __name__ == "__main__":
@@ -180,4 +207,6 @@ if __name__ == "__main__":
     create_plots(policy_grid, title="With usable ace", filename="expectimax_usable_ace_policy_heatmap.png")
     policy_grid = generate_policy_grid(agent, usable_ace=False)
     create_plots(policy_grid, title="Without usable ace", filename="expectimax_unusable_ace_policy_heatmap.png")
+    win_rate = get_win_rate(agent.expected_values, 100000, agent.env)
+    print("Expectimax's win rate: ", win_rate)
     agent.env.close()
