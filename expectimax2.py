@@ -135,26 +135,6 @@ class ExpectimaxAgent:
                             loss_probability = 0
                         stand_value = -1 * loss_probability + 1 * win_probability  # Excluding draw since reward = 0
                     self.expected_values[state][0] = stand_value
-                    # for action in [0, 1]:  # 0: Stand, 1: Hit
-                    #     next_state, reward, done, _, _ = self.env.step(action)
-                    #     # Expected value considering dealer's cards (average reward across all dealer possibilities)
-                    #     if not done:
-                    #         expected_reward = sum(
-                    #             expectimax(next_state, episode_complete) / 10)
-                    #     else:
-                    #         expected_reward = reward
-                    #     value = max(value, expected_reward)
-                    #     self.env.step(1)  # Step back after simulating hit action
-                    # return max(hit_value, stand_value)
-
-            # Dealer's turn (minimize expected reward for player)
-            # else:
-            #     # value = float("inf")
-            #     # while self.is_dealer_playing(state):
-            #     #     next_state, reward, done, _, _ = self.env.step(1)  # Dealer hits
-            #     #     value = min(value, expectimax(next_state, episode_complete))
-            #     # return value
-            #     return -1
             if return_both_values:
                 return stand_value, hit_value
             else:
@@ -199,10 +179,8 @@ def get_win_rate(policy, num_games, env):
 
 if __name__ == "__main__":
     agent = ExpectimaxAgent()
-    agent.run(num_episodes=100000)
+    agent.run(num_episodes=100)
     regular_dict_object = {str(key): value.tolist() for key, value in agent.expected_values.items()}
-    with open('data.json', 'w') as json_file:
-        json.dump(regular_dict_object, json_file, indent=4)
     policy_grid = generate_policy_grid(agent, usable_ace=True)
     create_plots(policy_grid, title="With usable ace", filename="expectimax_usable_ace_policy_heatmap.png")
     policy_grid = generate_policy_grid(agent, usable_ace=False)

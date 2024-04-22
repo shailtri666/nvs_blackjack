@@ -12,7 +12,7 @@ np.random.seed(666)
 
 
 class QLearningAgent:
-    def __init__(self, env, gamma, epsilon, epsilon_decay_factor):
+    def __init__(self, env, gamma, epsilon, epsilon_decay_factor, learning_rate):
         self.env = env
 
         self.__reinitialize_variables()
@@ -20,6 +20,7 @@ class QLearningAgent:
         self.gamma = gamma
         self.original_epsilon = epsilon
         self.epsilon_decay_factor = epsilon_decay_factor
+        self.learning_rate = learning_rate
 
     def train_agent(self, num_episodes):
         self.__reinitialize_variables()
@@ -35,7 +36,7 @@ class QLearningAgent:
                 action = self.__select_appropriate_action(current_epsilon, state)
                 new_state, reward, episode_complete_flag, truncated, info = self.env.step(action)
 
-                self.__update_q_values(state, action, new_state, reward)
+                self.__update_q_values(state, action, new_state, reward, truncated)
 
                 current_epsilon, state = self.__update_parameters(state, action, current_epsilon, new_state)
 
@@ -60,23 +61,32 @@ class QLearningAgent:
     def get_training_error(self):
         return self.training_error
 
-    def __update_q_values(self, state, action, new_state, reward):
-        eta = 1 / (1 + self.num_value_updates[state][action])
-        v_opt_new_state = max(self.q_values[new_state])
+    def __update_q_values(self, state, action, new_state, reward, truncated):
+        # eta = 1 / (1 + self.num_value_updates[state][action])
+        v_opt_new_state = (not truncated) * max(self.q_values[new_state])
+        # v_opt_new_state = max(self.q_values[new_state])
         temporal_difference = reward + self.gamma * v_opt_new_state - self.q_values[state][action]
-        self.q_values[state][action] = self.q_values[state][action] + eta * temporal_difference
+        self.q_values[state][action] = self.q_values[state][action] + self.learning_rate * temporal_difference
+        # self.q_values[state][action] = self.q_values[state][action] + eta * temporal_difference
         self.training_error.append(temporal_difference)
 
     def __update_parameters(self, state, action, current_epsilon, new_state):
         self.num_value_updates[state][action] += 1
-        current_epsilon *= self.epsilon_decay_factor
+        current_epsilon -= self.epsilon_decay_factor
         return current_epsilon, new_state
 
 
+# Configuration D - i_epsilon 1, gamma 1, epsilon_decay i_epsilon/n_episodes, 0.0000001, 41.625
+# Configuration A - i_epsilon 0.99, gamma 0.9, epsilon_decay *0.9, eta = 1/1+num_updates(s, a), 38.557
+# Configuration B - i_epsilon 0.99, gamma 1, epsilon_decay *0.9, eta = 1/1+num_updates(s, a), 38.025
+# Configuration C - i_epsilon 0.99, gamma 1, epsilon_decay -0.0009, 0.0001, 41.513
+# Configuration F - i_epsilon 0.99, gamma 1, epsilon_decay i_epsilon/n_episodes, 0.0001, 42.099
+# Configuration E - i_epsilon 1, gamma 1, epsilon_decay i_epsilon/n_episodes, 0.0001, 41.634
+initial_epsilon = 1
 n_episodes = 1000000
 blackjack_env = gym.make('Blackjack-v1', natural=True, sab=False, render_mode='rgb_array')
 blackjack_env = gym.wrappers.RecordEpisodeStatistics(blackjack_env, buffer_length=n_episodes)
-qlAgent = QLearningAgent(blackjack_env, 0.9, 1, 0.2)
+qlAgent = QLearningAgent(blackjack_env, 1, initial_epsilon, initial_epsilon / n_episodes, 0.0000001)
 q_values, optimal_policy = qlAgent.train_agent(n_episodes)
 
 
@@ -84,7 +94,7 @@ def get_win_rate(policy, num_games, env):
     state, _ = env.reset()
     num_wins = 0
 
-    for _ in range(num_games):
+    for _ in tqdm(range(num_games)):
         episode_complete_flag = False
         reward = 0
 
@@ -100,7 +110,7 @@ def get_win_rate(policy, num_games, env):
     return num_wins * 100 / num_games
 
 
-get_win_rate(optimal_policy, 100000, blackjack_env)
+print("Q-Learning Agent's win rate: ", get_win_rate(optimal_policy, 100000, blackjack_env))
 
 roll_length = 500
 
@@ -135,7 +145,7 @@ def make_training_plots(rolling_length, filename):
     plt.show()
 
 
-make_training_plots(roll_length, "training_plots.png")
+make_training_plots(roll_length, "qLearning_training_plots.png")
 
 
 def generate_policy_grid(agent, usable_ace=False):
@@ -162,7 +172,7 @@ def create_plots(policy_grid, title, filename):
     fig, ax = plt.subplots()
     im = ax.imshow(policy_grid, cmap='Pastel1')  # Set3 with black, Pastel1 with black
 
-    ax.set_xticks(range(0, 14), labels=list(map(str, range(8, 22))))
+    ax.set_xticks(range(0, 17), labels=list(map(str, range(5, 22))))
     ax.set_yticks(range(0, 10), ["A"] + list(map(str, range(2, 11))))
 
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
@@ -172,7 +182,7 @@ def create_plots(policy_grid, title, filename):
             ax.text(j, i, policy_grid[i, j],
                     ha="center", va="center", color="black")
 
-    ax.set_title("Harvest of local farmers (in tons/year)")
+    # ax.set_title("")
     fig.tight_layout()
     plt.title(title)
     plt.savefig(filename)
@@ -181,8 +191,8 @@ def create_plots(policy_grid, title, filename):
 
 # policy with usable ace (ace counts as 1 or 11)
 policy_grid = generate_policy_grid(qlAgent, usable_ace=True)
-create_plots(policy_grid, title="With usable ace", filename="usable_ace_policy_heatmap.png")
+create_plots(policy_grid, title="With usable ace", filename="qLearning_usable_ace_policy_heatmap.png")
 
 # policy without usable ace
 policy_grid = generate_policy_grid(qlAgent, usable_ace=False)
-create_plots(policy_grid, title="Without usable ace", filename="unusable_ace_policy_heatmap.png")
+create_plots(policy_grid, title="Without usable ace", filename="qLearning_unusable_ace_policy_heatmap.png")
